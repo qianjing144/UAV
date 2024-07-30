@@ -1,0 +1,13 @@
+C251 COMPILER V5.60.0,  mymath                                                             27/07/24  15:29:53  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE mymath
+OBJECT MODULE PLACED IN .\Objects\mymath.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE mymath.c XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEBUG PRIN
+                    -T(.\Listings\mymath.lst) OBJECT(.\Objects\mymath.obj) 
+
+stmt  level    source
+
+*** ERROR C318 OF mymath.c: can't open file 'mymath.c'
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  1 ERROR(S)

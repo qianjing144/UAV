@@ -1,0 +1,1 @@
+"Code\QMC5883L.c" XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEBUG PRINT(.\Listings\QMC5883L.lst) OBJECT(.\Objects\QMC5883L.obj)

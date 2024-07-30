@@ -1,0 +1,134 @@
+C251 COMPILER V5.60.0,  SBUS                                                               31/07/24  06:59:01  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE SBUS
+OBJECT MODULE PLACED IN .\Objects\SBUS.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE Code\SBUS.c XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEBUG P
+                    -RINT(.\Listings\SBUS.lst) OBJECT(.\Objects\SBUS.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * SBUS.c
+    3           *
+    4           *  Created on: Jul 15, 2024
+    5           *      Author: qian-jing
+    6           */
+    7          #include <STC8051U.H>
+    8          #include <intrins.h>
+    9          #include "main.h"
+   10          #include "SBUS.h"
+   11          
+   12          #ifdef DEBUG
+               #include "oled.h"
+               #endif
+   15          
+   16          #include "UART.h"
+   17          
+   18          #define START_BYTE 0x0F
+   19          #define END_BYTE   0x00
+   20          
+   21          static int ch[16];
+   22          unsigned char rx_cnt=0;
+   23          unsigned char rx2_timeOut=0;
+   24          static unsigned char xdata sbusBuf[25];
+   25          
+   26          void sbus_init()
+   27          {
+   28   1              
+   29   1              S2CON=0xD8;//1101 1100模式三
+   30   1              S2CFG|=0x01;//W1=1
+   31   1              AUXR |= 0x04;           //定时器时钟1T模式
+   32   1              T2H = (65536-60)/256;
+   33   1              T2L = (65536-60)%256;
+   34   1              AUXR |= 0x10;           //定时器2开始计时
+   35   1              IE2 |= 0x01;            //使能串口2中断
+   36   1              INTCLKO &= ~0x02;//不输出时钟
+   37   1              
+   38   1              DMA_UR2R_CFG=0x80;
+   39   1              DMA_UR2R_STA=0x00;
+   40   1              DMA_UR2R_AMT=25-1; //传输总字节数减一
+   41   1              DMA_UR2R_RXAH=(unsigned char)(((unsigned int)sbusBuf)>>8);
+   42   1              DMA_UR2R_RXAL=(unsigned char)((unsigned int)sbusBuf);
+   43   1              
+   44   1              sbusBuf[0]=0x00;
+   45   1              sbusBuf[24]=0xFF;
+   46   1              DMA_UR2R_CR=0xa1;
+   47   1      }
+   48          
+   49          void sbus_inirq()
+   50          {
+   51   1              if(sbusBuf[0]==START_BYTE && sbusBuf[24]==END_BYTE)
+   52   1              {
+   53   2                      ch[ 0] = ((int)sbusBuf[ 2-1] >> 0 | ((int)sbusBuf[ 3-1] << 8 )) & 0x07FF;
+   54   2                      ch[ 1] = ((int)sbusBuf[ 3-1] >> 3 | ((int)sbusBuf[ 4-1] << 5 )) & 0x07FF;
+   55   2                      ch[ 2] = ((int)sbusBuf[ 4-1] >> 6 | ((int)sbusBuf[ 5-1] << 2 )  | (int)sbusBuf[ 6-1] << 10 ) & 0x07FF;
+   56   2                      ch[ 3] = ((int)sbusBuf[ 6-1] >> 1 | ((int)sbusBuf[ 7-1] << 7 )) & 0x07FF;
+   57   2                      ch[ 4] = ((int)sbusBuf[ 7-1] >> 4 | ((int)sbusBuf[ 8-1] << 4 )) & 0x07FF;
+   58   2                      ch[ 5] = ((int)sbusBuf[ 8-1] >> 7 | ((int)sbusBuf[ 9-1] << 1 )  | (int)sbusBuf[10-1] <<  9 ) & 0x07FF;
+C251 COMPILER V5.60.0,  SBUS                                                               31/07/24  06:59:01  PAGE 2   
+
+   59   2                      ch[ 6] = ((int)sbusBuf[10-1] >> 2 | ((int)sbusBuf[11-1] << 6 )) & 0x07FF;
+   60   2                      ch[ 7] = ((int)sbusBuf[11-1] >> 5 | ((int)sbusBuf[12-1] << 3 )) & 0x07FF;
+   61   2      
+   62   2                      ch[ 8] = ((int)sbusBuf[13-1] << 0 | ((int)sbusBuf[14-1] << 8 )) & 0x07FF;
+   63   2                      ch[ 9] = ((int)sbusBuf[14-1] >> 3 | ((int)sbusBuf[15-1] << 5 )) & 0x07FF;
+   64   2                      ch[10] = ((int)sbusBuf[15-1] >> 6 | ((int)sbusBuf[16-1] << 2 )  | (int)sbusBuf[17-1] << 10 ) & 0x07FF;
+   65   2                      ch[11] = ((int)sbusBuf[17-1] >> 1 | ((int)sbusBuf[18-1] << 7 )) & 0x07FF;
+   66   2                      ch[12] = ((int)sbusBuf[18-1] >> 4 | ((int)sbusBuf[19-1] << 4 )) & 0x07FF;
+   67   2                      ch[13] = ((int)sbusBuf[19-1] >> 7 | ((int)sbusBuf[20-1] << 1 )  | (int)sbusBuf[21-1] <<  9 ) & 0x07FF;
+   68   2                      ch[14] = ((int)sbusBuf[21-1] >> 2 | ((int)sbusBuf[22-1] << 6 )) & 0x07FF;
+   69   2                      ch[15] = ((int)sbusBuf[22-1] >> 5 | ((int)sbusBuf[23-1] << 3 )) & 0x07FF;
+   70   2                      sbusBuf[0]=0x00;
+   71   2                      sbusBuf[24]=0xFF;
+   72   2              }
+   73   1      }
+   74          
+   75          int sbus_getData(int ch_index)
+   76          {
+   77   1              return ch[ch_index];
+   78   1      }
+   79          
+   80          unsigned char sbus_getRxCnt()
+   81          {
+   82   1              return rx_cnt;
+   83   1      }
+   84          
+   85          void sbus_setRxCnt(unsigned char val)
+   86          {
+   87   1              rx_cnt=val;
+   88   1      }
+   89          
+   90          unsigned char sbus_getRx2TimeOut()
+   91          {
+   92   1              return rx2_timeOut;
+   93   1      }
+   94          
+   95          void sbus_setRx2TimeOut(unsigned char val)
+   96          {
+   97   1              rx2_timeOut=val;
+   98   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       722     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =        25     ------
+  xdata-const size     =    ------     ------
+  edata size           =        34     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        10     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

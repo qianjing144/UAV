@@ -1,0 +1,460 @@
+C251 COMPILER V5.60.0,  main                                                               31/07/24  06:59:01  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE main
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE Code\main.c XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEBUG P
+                    -RINT(.\Listings\main.lst) OBJECT(.\Objects\main.obj) 
+
+stmt  level    source
+
+    1          #include <STC8051U.H>
+    2          #include <intrins.h>
+    3          #include <math.h>
+    4          #include "main.h"
+    5          #include "i2c.h"
+    6          #include "lps22hh.h"
+    7          #include "UART.h"
+    8          #include "sbus.h"
+    9          #include "mpu6050.h"
+   10          #include "qmc5883l.h"
+   11          #include "motor.h"
+   12          #include "pid.h"
+   13          #include "timer.h"
+   14          
+   15          #define LU 42
+   16          #define HU 110
+   17          
+   18          #ifdef DEBUG
+               #include "OLED.h"
+               #endif
+   21          
+   22          LPS22HH_t lps22hh_obj;
+   23          MPU6050_t mpu6050_obj;
+   24          QMC5883L_t qmc5883l_obj;
+   25          
+   26          float targetAngleX=0.0f;
+   27          float targetAngleY=0.0f;
+   28          float targetYaw=0.0f;
+   29          float targetHeight=0.0f;
+   30          
+   31          float u1=0.0f;
+   32          float u2=0.0f;
+   33          float u3=0.0f;
+   34          float u4=0.0f;
+   35          
+   36          void delayxus(unsigned int xus) //@11.0592MHz
+   37          {
+   38   1              unsigned long edata i;
+   39   1              unsigned char j=0;
+   40   1              while(xus--)
+   41   1              {
+   42   2                      for(j=0;j<13;j++)
+   43   2                      {
+   44   3                              _nop_();
+   45   3                              _nop_();
+   46   3                              _nop_();
+   47   3                              i = 4UL;
+   48   3                              while (i) i--;
+   49   3                      }
+   50   2              }
+   51   1      }
+   52          
+   53          void delayxms(unsigned int xms) //@11.0592MHz
+   54          {
+   55   1              unsigned long edata i;
+   56   1              unsigned char j=0;
+   57   1              while(xms--)
+   58   1              {
+C251 COMPILER V5.60.0,  main                                                               31/07/24  06:59:01  PAGE 2   
+
+   59   2                      for(j=0;j<13;j++)
+   60   2                      {
+   61   3                              _nop_();
+   62   3                              _nop_();
+   63   3                              i = 2763UL;
+   64   3                              while (i) i--;
+   65   3                      }
+   66   2              }
+   67   1      }
+   68          
+   69          void sys_cfg2()
+   70          {
+   71   1              P_SW2=0x80;
+   72   1              CKCON=0x00;
+   73   1              WTST=0x00;
+   74   1              
+   75   1      //      P0M0= 0x00;
+   76   1      //      P0M1= 0x00;
+   77   1                  
+   78   1              P0M0 = 0xff; 
+   79   1              P0M1 = 0x00; 
+   80   1      
+   81   1              P1M0= 0x00;
+   82   1              P1M1= 0x00;
+   83   1              P2M0 = 0x18; 
+   84   1              P2M1 = 0x18; 
+   85   1      
+   86   1              P3M0= 0x00;
+   87   1              P3M1= 0x00;
+   88   1              P4M0= 0x00;
+   89   1              P4M1= 0x00;
+   90   1              P5M0= 0x00;
+   91   1              P5M1= 0x00;
+   92   1              
+   93   1      //      CLKSEL &= ~0x80; //PLL 96M
+   94   1              
+   95   1              XOSCCR=0xE4;//启动外部晶振
+   96   1              while(!(XOSCCR&1));//等待时钟稳定
+   97   1              CLKDIV=0x00;//时钟不分频
+   98   1              CLKSEL=0x01;//选择外部晶振
+   99   1              
+  100   1              CLKSEL &= ~0x80;//选择PLL的96M作为PLL的输出时钟
+  101   1              USBCLK &= ~0x60;//
+  102   1              USBCLK|=0x00;//PPL输入时钟为12M,选择1分频
+  103   1              
+  104   1              USBCLK|=0x80;//启动PLL
+  105   1              
+  106   1              delayxus(60);
+  107   1              
+  108   1              HSCLKDIV=0x00;
+  109   1              CLKSEL|=0x40;
+  110   1              TFPU_CLKDIV=0x00;//96M
+  111   1              PWMA_CLKDIV=4;//24M
+  112   1      }
+  113          
+  114          void hardware_init()
+  115          {
+  116   1              uart1_init();
+  117   1              i2c_init();
+  118   1              
+  119   1              timer3_init();
+  120   1              delayxms(200);
+  121   1      #ifdef DEBUG
+                       OLED_Init();
+                       OLED_Clear();
+               #endif
+C251 COMPILER V5.60.0,  main                                                               31/07/24  06:59:01  PAGE 3   
+
+  125   1              motor_init();
+  126   1              lps22hh_obj.devAddr=0x5C;
+  127   1              if(lps22hh_init(&lps22hh_obj))
+  128   1              {
+  129   2                      #ifdef DEBUG
+                               OLED_ShowString(0, 0, "E_LPS22HH", 16, 0);
+                               #endif
+  132   2                      return;
+  133   2              }
+  134   1              mpu6050_obj.devAddr=0x68;
+  135   1              if(mpu6050_init(&mpu6050_obj))
+  136   1              {
+  137   2                      #ifdef DEBUG
+                               OLED_ShowString(0, 0, "E_MPU6050", 16, 0);
+                               #endif
+  140   2                      return;
+  141   2              }
+  142   1              qmc5883l_obj.devAddr=0x0D;
+  143   1              if(qmc5883l_init(&qmc5883l_obj))
+  144   1              {
+  145   2                      #ifdef DEBUG
+                               OLED_ShowString(0,0, "E_QMC5883l", 16,0);
+                               #endif
+  148   2                      return;
+  149   2              }
+  150   1              sbus_init();
+  151   1              
+  152   1      }
+  153          void AngleXY()
+  154          {
+  155   1              static float pX=0.5;//0.5
+  156   1              static float iX=0;
+  157   1              static float dX=0;//-0.1
+  158   1              static float uX=0;
+  159   1              //X￿?????????????????????????????????????????????????????????????????????
+  160   1              float RTAngleX=0;//定义X轴实时角度变￿?????????????????????????????????????????????????????????
+             -????????????
+  161   1              float RTGyroX=0;//定义X轴实时角速度变量
+  162   1      
+  163   1              static float pY=0;
+  164   1              static float iY=0;
+  165   1              static float dY=0;
+  166   1              static float uY=0;
+  167   1              //Y￿?????????????????????????????????????????????????????????????????????
+  168   1              float RTAngleY=0;//定义Y轴实时角度变￿?????????????????????????????????????????????????????????
+             -????????????
+  169   1              float RTGyroY=0;//定义Y轴实时角速度变量
+  170   1              
+  171   1              if(mpu6050_getAngleGn(&mpu6050_obj, &RTAngleX, &RTAngleY,&RTGyroX,&RTGyroY)==0)
+  172   1              {
+  173   2                      uX=-pid_angleX(targetAngleX, RTAngleX, RTGyroX, pX, iX, dX);
+  174   2                      uY=pid_angleY(targetAngleY, RTAngleY, RTGyroY, pY, iY, dY);
+  175   2              }
+  176   1              if(RTAngleX>45 || RTAngleX<-45 || RTAngleY>45 || RTAngleY<-45)
+  177   1              {
+  178   2                      while(1)
+  179   2                      {
+  180   3                              motor_control(0,0,0,0);
+  181   3                      }
+  182   2              }
+  183   1              //1+
+  184   1              u1+=uY;
+  185   1              //2-
+  186   1              u2-=uY;
+  187   1              //3-
+  188   1              u3-=uY;
+C251 COMPILER V5.60.0,  main                                                               31/07/24  06:59:01  PAGE 4   
+
+  189   1              //4+
+  190   1              u4+=uY;
+  191   1      
+  192   1              //1+
+  193   1              u1+=uX;
+  194   1              //2+
+  195   1              u2+=uX;
+  196   1              //3-
+  197   1              u3-=uX;
+  198   1              //4-
+  199   1              u4-=uX;
+  200   1      }
+  201          
+  202          void Yaw()
+  203          {
+  204   1              static float p=0;
+  205   1              static float i=0;
+  206   1              static float d=0;
+  207   1              static float u=0;
+  208   1      
+  209   1              static unsigned char is_first_flag=1;//第一次运行标志位
+  210   1              static float RTYaw=0;//定义存储实时真实的角度的变量
+  211   1              static float dRTYaw=0;//存储实时相对起始点的偏航￿?????????????????????????????????????
+  212   1              static float startYaw=0;//起始偏航￿?????????????????????????????????????
+  213   1      
+  214   1              if(qmc5883l_getHeading(&qmc5883l_obj, &RTYaw)==0)
+  215   1              {
+  216   2                      if(is_first_flag==1)
+  217   2                      {
+  218   3                              is_first_flag=0;
+  219   3                              startYaw=RTYaw;//获取初始高度
+  220   3                      }
+  221   2                      dRTYaw=RTYaw-startYaw;
+  222   2                      u=pid_yaw(targetYaw, dRTYaw, p, i, d);
+  223   2              }
+  224   1              u1+=u;
+  225   1              u2-=u;
+  226   1              u3+=u;
+  227   1              u4-=u;
+  228   1      }
+  229          
+  230          void Height()
+  231          {
+  232   1              /* USER CODE BEGIN HeightTask */
+  233   1              static float p=0;
+  234   1              static float i=0;
+  235   1              static float d=0;
+  236   1              static float u=0;
+  237   1      
+  238   1              static unsigned char is_first_flag=1;
+  239   1              static float StartAltitude=0;
+  240   1              float RTHeight=0;
+  241   1              float RTAltitude=0;
+  242   1              if(lps22hh_get_alt(&lps22hh_obj,&RTAltitude)==0)
+  243   1              {
+  244   2                      if(is_first_flag==1)
+  245   2                      {
+  246   3                              is_first_flag=0;
+  247   3                              StartAltitude=RTAltitude;//获取初始高度
+  248   3                      }
+  249   2                      RTHeight=RTAltitude-StartAltitude;//计算相对于起始点的高￿??????????????????????????????????
+             -??????????????????????
+  250   2                      u=pid_height(targetHeight,RTHeight,p,i,d);//高度调整
+  251   2              }
+  252   1              u1+=u;
+  253   1              u2=u3=u4=u1;
+C251 COMPILER V5.60.0,  main                                                               31/07/24  06:59:01  PAGE 5   
+
+  254   1      }
+  255          
+  256          void rx()
+  257          {
+  258   1              static unsigned char kX=0,kY=0,kYaw=0,kHeight=0;
+  259   1              for(;sbus_getData(5)<800;)
+  260   1              {
+  261   2                      motor_control(0,0,0,0);
+  262   2              }
+  263   1              #ifdef DEBUG
+                       OLED_ShowNum(0, 0, sbus_getData(5), 5, 12, 0);
+                       #endif
+  266   1              /*
+  267   1               * 积分清零
+  268   1               */
+  269   1              pid_setAngleXI(0);
+  270   1              pid_setAngleYI(0);
+  271   1              pid_setHeightI(0);
+  272   1              pid_setYawI(0);
+  273   1              /*
+  274   1               * 姿�?�调￿??????????????????????????
+  275   1               */
+  276   1              targetAngleX=kX*sbus_getData(0);//X
+  277   1              targetAngleY=kY*sbus_getData(1);//Y
+  278   1              targetYaw+=kYaw*sbus_getData(3);//yaw
+  279   1              if(targetYaw>360)//如果转动超过￿?????????????????????????????????????????????????????￿????????
+             -?????????????????????????????????????????????
+  280   1              {
+  281   2                      targetYaw=0;//将目标偏航角度置0,即启动新的一￿??????????????????????????????????????????
+             -???????????
+  282   2              }
+  283   1              else if (targetYaw<0)//如果目标角度小于0
+  284   1              {
+  285   2                      targetYaw=360;//启动新的￿?????????????????????????????????????????????????????￿????????????????
+             -?????????????????????????????????????
+  286   2              }
+  287   1              targetHeight+=kHeight*sbus_getData(2);//height
+  288   1      }
+  289          
+  290          void u_limit()
+  291          {
+  292   1              if(u1<LU)
+  293   1              {
+  294   2                      u1=LU;
+  295   2              }
+  296   1              else if(u1>HU)
+  297   1              {
+  298   2                      u1=HU;
+  299   2              }
+  300   1              if(u2<LU)
+  301   1              {
+  302   2                      u2=LU;
+  303   2              }
+  304   1              else if(u2>HU)
+  305   1              {
+  306   2                      u2=HU;
+  307   2              }
+  308   1              if(u3<LU)
+  309   1              {
+  310   2                      u3=LU;
+  311   2              }
+  312   1              else if(u3>HU)
+  313   1              {
+  314   2                      u3=HU;
+  315   2              }
+  316   1              if(u4<LU)
+C251 COMPILER V5.60.0,  main                                                               31/07/24  06:59:01  PAGE 6   
+
+  317   1              {
+  318   2                      u4=LU;
+  319   2              }
+  320   1              else if(u4>HU)
+  321   1              {
+  322   2                      u4=HU;
+  323   2              }
+  324   1      }
+  325          
+  326          void motor_run()
+  327          {
+  328   1              motor_1(u1*0.905);
+  329   1              motor_2(u2);
+  330   1              motor_3(u3);
+  331   1              motor_4(u4);
+  332   1              u1=LU;
+  333   1              u2=LU;
+  334   1              u3=LU;
+  335   1              u4=LU;
+  336   1      }
+  337          
+  338          void main()
+  339          {
+  340   1              sys_cfg2();
+  341   1              EA=1;
+  342   1              hardware_init();
+  343   1              
+  344   1              while(1)
+  345   1              {
+  346   2                      AngleXY();
+  347   2                      
+  348   2      //              Yaw();
+  349   2      //              Height();
+  350   2                      
+  351   2                      rx();
+  352   2                      #ifdef DEBUG
+                               OLED_Showdecimal(0,1,1,3,2,12, 0);
+                               #endif
+  355   2                      u_limit();
+  356   2                      motor_run();
+  357   2              }
+  358   1      }
+  359          
+  360          
+  361          void uart2_isr(void) interrupt 8
+  362          {
+  363   1              if (S2CON & 0x02)       //检测串口2发送中断
+  364   1              {
+  365   2                      S2CON &= ~0x02; //清除串口2发送中断请求位
+  366   2              }
+  367   1              if (S2CON & 0x01)       //检测串口2接收中断
+  368   1              {
+  369   2                      RI=0;
+  370   2                      sbus_setRxCnt(sbus_getRxCnt()+1);
+*** WARNING C188 IN LINE 370 OF Code\main.c: 'parameter 1': value truncated
+  371   2                      if(sbus_getRxCnt()>=24)sbus_setRxCnt(0);
+  372   2                      sbus_setRx2TimeOut(5);
+  373   2                      S2CON &= ~0x01; //清除串口2接收中断请求位
+  374   2              }
+  375   1      }
+  376          
+  377          void timer3_isr(void) interrupt 19
+  378          {
+  379   1              if(sbus_getRx2TimeOut()>0)
+  380   1              {
+  381   2                      sbus_setRx2TimeOut(sbus_getRx2TimeOut()-1);
+C251 COMPILER V5.60.0,  main                                                               31/07/24  06:59:01  PAGE 7   
+
+*** WARNING C188 IN LINE 381 OF Code\main.c: 'parameter 1': value truncated
+  382   2                      if(sbus_getRx2TimeOut()==0)
+  383   2                      {
+  384   3                              DMA_UR2R_CR=0x00;
+  385   3                              sbus_setRxCnt(0);
+  386   3                              DMA_UR2R_CR=0xA1;
+  387   3                      }
+  388   2              }
+  389   1      }
+  390          
+  391          void SBUS_DMA_Isr(void) interrupt 53
+  392          {
+  393   1              
+  394   1              if(DMA_UR2R_STA&0x01)
+  395   1              {
+  396   2                      #ifdef DEBUG
+               //              OLED_ShowNum(0,2,8,3,12,0);
+                               #endif
+  399   2                      DMA_UR2R_STA &= ~0x01;
+  400   2                      sbus_inirq();
+  401   2                      sbus_setRxCnt(0);
+  402   2                      sbus_setRx2TimeOut(0);
+  403   2                      DMA_UR2R_CR=0xA1;
+  404   2              }
+  405   1                      
+  406   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =        12     ------
+  ecode size           =      1689     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =       121         20
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       254     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  2 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,104 @@
+C251 COMPILER V5.60.0,  PID                                                                31/07/24  06:59:01  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE PID
+OBJECT MODULE PLACED IN .\Objects\PID.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE Code\PID.c XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEBUG PR
+                    -INT(.\Listings\PID.lst) OBJECT(.\Objects\PID.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * PID.c
+    3           *
+    4           *  Created on: Jul 13, 2024
+    5           *      Author: qian-jing
+    6           */
+    7          
+    8          float Angle_X_I=0;      //存储X相差角度的累计值
+    9          float Angle_Y_I=0;      //存储Y相差角度的累计值
+   10          float Height_I  =0;     //存储相差高度的累计值
+   11          float Yaw_I             =0;     //定义存储偏航角度累计的变量
+   12          
+   13          float pid_angleX(float TargetAngle,float RTAngle,float RTGyro,float Kp, float Ki,float Kd)
+   14          {
+   15   1              float Angle=0;
+   16   1              Angle=RTAngle-TargetAngle;//获取目标角度和目前角度的差值
+   17   1              Angle_X_I+=Angle;               //角度积分累积
+   18   1              return Kp*RTAngle+Ki*Angle_X_I+Kd*RTGyro;
+   19   1      }
+   20          float pid_angleY(float TargetAngle,float RTAngle,float RTGyro,float Kp, float Ki,float Kd)
+   21          {
+   22   1              float Angle=0;                                          //定义存储当前角度的变量
+   23   1              Angle=RTAngle-TargetAngle;//获取目标角度和目前角度的差值
+   24   1              Angle_Y_I+=Angle;               //角度积分累计
+   25   1              return Kp*RTAngle+Ki*Angle_Y_I+Kd*RTGyro;       //返回调整值 double类型
+   26   1      }
+   27          float pid_yaw(float TargetYaw,float RTYaw,float Kp,float Ki,float Kd)
+   28          {
+   29   1              float Yaw=0;                                                                                                    //定义存储当前偏航角度的变量
+   30   1              static float PastYaw=0;                                         //定义存储上一次获得的偏航角度的变量
+   31   1              float Yaw_D=0;                                                                                  //定义存储偏航角度变化速度的变量
+   32   1              Yaw=RTYaw-TargetYaw;
+   33   1              Yaw_D=RTYaw-PastYaw;                                                    //获取目标角度与设定偏航角度的差
+   34   1              PastYaw=Yaw;                                                                                            //记录这一次的变化角度,将在下一次的时候作为上一次的偏�
+             -�角度使用,用于计算偏航角度的变化速度
+   35   1              Yaw_I+=Yaw;                                                                                     //累计误差
+   36   1              return Kp*Yaw+Ki*Yaw_I+Kd*Yaw_D;//返回调整值 double类型
+   37   1      }
+   38          float pid_height(float TargetHeight,float RTHeight,float Kp,float Ki,float Kd)
+   39          {
+   40   1              float Height=0;                                 //定义存储当前角度的变量
+   41   1              static float PastHeight=0;                      //定义存储上一次获得的高度的变量
+   42   1              float Height_D=0;                               //定义存储高度变化速度的变量
+   43   1              Height=RTHeight-TargetHeight;                                                           //计算相差高度
+   44   1              Height_D=Height-PastHeight;                                                                     //计算高度变化量
+   45   1              PastHeight=Height;                                                                                                      //记录这一次的变化量,将在下一次的时候作为上一次的�
+             -��度使用,用于计算高度的变化速度
+   46   1              Height_I+=Height;                                                                       //累计相差角度
+   47   1      
+   48   1              return Kp*Height+Ki*Height_I+Kd*Height_D;//返回调整值 double类型
+   49   1      
+   50   1      }
+   51          void pid_setAngleXI(float val)
+   52          {
+   53   1              Angle_X_I=val;
+   54   1      }
+   55          void pid_setAngleYI(float val)
+   56          {
+C251 COMPILER V5.60.0,  PID                                                                31/07/24  06:59:01  PAGE 2   
+
+   57   1              Angle_Y_I=val;
+   58   1      }
+   59          void pid_setHeightI(float val)
+   60          {
+   61   1              Height_I=val;
+   62   1      }
+   63          void pid_setYawI(float val)
+   64          {
+   65   1              Yaw_I=val;
+   66   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       352     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        24         56
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        48     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

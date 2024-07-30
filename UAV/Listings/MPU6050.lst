@@ -1,0 +1,321 @@
+C251 COMPILER V5.60.0,  MPU6050                                                            31/07/24  06:59:01  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE MPU6050
+OBJECT MODULE PLACED IN .\Objects\MPU6050.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE Code\MPU6050.c XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEBU
+                    -G PRINT(.\Listings\MPU6050.lst) OBJECT(.\Objects\MPU6050.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * MPU6050.c
+    3           *
+    4           *  Created on: Jul 16, 2024
+    5           *      Author: qian-jing
+    6           */
+    7          #include <STC8051U.H>
+    8          #include <math.h>
+    9          #include "main.h"
+   10          #include "MPU6050.h"
+   11          #include "timer.h"
+   12          #ifdef DEBUG
+               #include "oled.h"
+               #endif
+   15          
+   16          
+   17          #define SELF_TEST_X 0x0D
+   18          #define SELF_TEST_Y 0x0E
+   19          #define SELF_TEST_Z 0x0F
+   20          #define SELF_TEST_A 0x10
+   21          #define SMPLRT_DIV      0x19
+   22          #define CONFIG                  0x1A
+   23          #define GYRO_CONFIG 0x1B
+   24          #define ACCEL_CONFIG 0x1C
+   25          #define FIFO_EN                  0x23
+   26          #define I2C_MST_CTRL 0x24
+   27          #define I2C_SLV0_ADDR 0x25
+   28          #define I2C_SLV0_REG  0x26
+   29          #define I2C_SLV0_CTRL 0x27
+   30          #define I2C_SLV1_ADDR 0x28
+   31          #define I2C_SLV1_REG  0x29
+   32          #define I2C_SLV1_CTRL 0x2A
+   33          #define I2C_SLV2_ADDR 0x2B
+   34          #define I2C_SLV2_REG  0x2C
+   35          #define I2C_SLV2_CTRL 0x2D
+   36          #define I2C_SLV3_ADDR 0x2E
+   37          #define I2C_SLV3_REG  0x2F
+   38          #define I2C_SLV3_CTRL 0x30
+   39          #define I2C_SLV4_ADDR 0x31
+   40          #define I2C_SLV4_REG  0x32
+   41          #define I2C_SLV4_DO   0x33
+   42          #define I2C_SLV4_CTRL 0x34
+   43          #define I2C_SLV4_DI   0x35
+   44          #define I2C_MST_STATUS 0x36
+   45          #define INT_PIN_CFG    0x37
+   46          #define INT_ENABLE     0x38
+   47          #define INT_STATUS     0x3A
+   48          #define ACCEL_XOUT 0x3B//H->L 2Byte
+   49          #define ACCEL_YOUT 0x3D
+   50          #define ACCEL_ZOUT 0x3F
+   51          #define TEMP_OUT   0x41
+   52          #define GYRO_XOUT  0x43
+   53          #define GYRO_YOUT  0x45
+   54          #define GYRO_ZOUT  0x47
+   55          #define EXT_SENS_DATA 0x49 //... 24Byte
+   56          #define I2C_SLV_DO 0x63 //... 4Byte
+   57          #define I2C_MST_DELAY_CTRL 0x67
+   58          #define SIGNAL_PATH_RESET 0x68
+C251 COMPILER V5.60.0,  MPU6050                                                            31/07/24  06:59:01  PAGE 2   
+
+   59          #define USER_CTRL 0x6A
+   60          #define PWR_MGMT 0x6B //2Byte
+   61          #define FIFO_COUNT 0x72 //2Byte H->L
+   62          #define FIFO_R_W 0x74
+   63          #define WHO_AM_I 0x75
+   64          
+   65          #define I_AM 0x68
+   66          
+   67          #define RAD_TO_DEG 57.295779513082320876798154814105
+   68          static unsigned char write_reg(MPU6050_t *obj,unsigned char reg,unsigned char *pData,unsigned char amount
+             -)
+   69          {
+   70   1              i2c_mem_write(obj->devAddr,reg,pData,amount);
+   71   1              return 0;
+   72   1      }
+   73          
+   74          static unsigned char read_reg(MPU6050_t *obj,unsigned char reg,unsigned char *pData,unsigned char amount)
+   75          {
+   76   1              i2c_mem_read(obj->devAddr,reg,pData,amount);
+   77   1              return 0;
+   78   1      }
+   79          
+   80          unsigned char mpu6050_init(MPU6050_t *obj)
+   81          {
+   82   1              unsigned char cmd;
+   83   1              unsigned char status;
+   84   1              status=read_reg(obj, WHO_AM_I, &cmd, 1);
+   85   1              if(cmd!=I_AM)
+   86   1              {
+   87   2                      return 2;
+   88   2              }
+   89   1              cmd=0x01;
+   90   1              write_reg(obj,PWR_MGMT,&cmd,1);
+   91   1              cmd=0x09;
+   92   1              write_reg(obj,SMPLRT_DIV,&cmd,1);
+   93   1              cmd=0x06;
+   94   1              status=write_reg(obj, CONFIG, &cmd, 1);
+   95   1      //      cmd=0xF8;
+   96   1      //      status=write_reg(obj, GYRO_CONFIG, &cmd, 1);
+   97   1      //      cmd=0xF8;
+   98   1      //      status=write_reg(obj, ACCEL_CONFIG, &cmd, 1);
+   99   1              cmd=0x18;
+  100   1              status=write_reg(obj, GYRO_CONFIG, &cmd, 1);
+  101   1              cmd=0x18;
+  102   1              status=write_reg(obj, ACCEL_CONFIG, &cmd, 1);
+  103   1              cmd=0x01;
+  104   1              status=write_reg(obj, INT_ENABLE, &cmd, 1);
+  105   1              return status;
+  106   1      }
+  107          
+  108          unsigned char getAnRaw(MPU6050_t *obj,unsigned char *pRaw) //6
+  109          {
+  110   1              unsigned char cmd;
+  111   1              read_reg(obj, INT_STATUS, &cmd, 1);//清空中断标志位
+  112   1              if((cmd&0x01)!=0x01)
+  113   1              {
+  114   2                      return 1;
+  115   2              }
+  116   1              read_reg(obj, ACCEL_XOUT, pRaw, 6);
+  117   1              return 0;
+  118   1      }
+  119          
+  120          unsigned char getGnRaw(MPU6050_t *obj,unsigned char *pRaw) //6
+  121          {
+  122   1              unsigned char cmd;
+  123   1              read_reg(obj, INT_STATUS, &cmd, 1);//清空中断标志位
+C251 COMPILER V5.60.0,  MPU6050                                                            31/07/24  06:59:01  PAGE 3   
+
+  124   1              if((cmd&0x01)!=0x01)
+  125   1              {
+  126   2                      return 1;
+  127   2              }
+  128   1              read_reg(obj, GYRO_XOUT, pRaw, 6);
+  129   1              return 0;
+  130   1      }
+  131          
+  132          unsigned char getTRaw(MPU6050_t *obj,unsigned char *pRaw) //6
+  133          {
+  134   1              unsigned char cmd;
+  135   1              read_reg(obj, INT_STATUS, &cmd, 1);//清空中断标志位
+  136   1              if((cmd&0x01)!=0x01)
+  137   1              {
+  138   2                      return 1;
+  139   2              }
+  140   1              read_reg(obj, TEMP_OUT, pRaw, 1);
+  141   1              return 0;
+  142   1      }
+  143          
+  144          unsigned char getAllRaw(MPU6050_t *obj,unsigned char *pRaw) //14 A6 T2 G6
+  145          {
+  146   1              unsigned char cmd;
+  147   1              read_reg(obj, INT_STATUS, &cmd, 1);//清空中断标志位
+  148   1              if((cmd&0x01)!=0x01)
+  149   1              {
+  150   2                      return 1;
+  151   2              }
+  152   1              read_reg(obj, ACCEL_XOUT, pRaw, 14);
+  153   1              return 0;
+  154   1      }
+  155          
+  156          
+  157          unsigned char mpu6050_getAn(MPU6050_t *obj,float *pData)//An[3]
+  158          {
+  159   1              unsigned char pRaw[6]={0};
+  160   1              if(getAnRaw(obj, pRaw))
+  161   1              {
+  162   2                      return 1;
+  163   2              }
+  164   1              pData[0]=(int)(pRaw[0]<<8|pRaw[1]);
+  165   1              pData[1]=(int)(pRaw[2]<<8|pRaw[3]);
+  166   1              pData[2]=(int)(pRaw[4]<<8|pRaw[5]);
+  167   1              pData[0]=(pData[0] - (-32767.0)) / (32767.0-(-32767.0)) * (16.0-(-16.0)) + (-16.0);
+  168   1              pData[1]=(pData[1] - (-32767.0)) / (32767.0-(-32767.0)) * (16.0-(-16.0)) + (-16.0);
+  169   1              pData[2]=(pData[2] - (-32767.0)) / (32767.0-(-32767.0)) * (16.0-(-16.0)) + (-16.0);
+  170   1              return 0;
+  171   1      }
+  172          
+  173          unsigned char mpu6050_getGn(MPU6050_t *obj,float *pData)//pData[3]
+  174          {
+  175   1              unsigned char pRaw[6]={0};
+  176   1              if(getAnRaw(obj, pRaw))
+  177   1              {
+  178   2                      return 1;
+  179   2              }
+  180   1              pData[0]=(int)(pRaw[0]<<8|pRaw[1]);
+  181   1              pData[1]=(int)(pRaw[2]<<8|pRaw[3]);
+  182   1              pData[2]=(int)(pRaw[4]<<8|pRaw[5]);
+  183   1              pData[0]=(pData[0] - (-32767.0)) / (32767.0-(-32767.0)) * (2000.0-(-2000.0)) + (-2000.0);
+  184   1              pData[1]=(pData[1] - (-32767.0)) / (32767.0-(-32767.0)) * (2000.0-(-2000.0)) + (-2000.0);
+  185   1              pData[2]=(pData[2] - (-32767.0)) / (32767.0-(-32767.0)) * (2000.0-(-2000.0)) + (-2000.0);
+  186   1              return 0;
+  187   1      }
+  188          
+  189          unsigned char mpu6050_getT(MPU6050_t *obj,float *pData)//pData[1]
+C251 COMPILER V5.60.0,  MPU6050                                                            31/07/24  06:59:01  PAGE 4   
+
+  190          {
+  191   1              unsigned char pRaw[2];
+  192   1              if(getTRaw(obj,pRaw))
+  193   1              {
+  194   2                      return 1;
+  195   2              }
+  196   1              pData[0]=(int)(pRaw[0]<<8|pRaw[1]);
+  197   1              pData[0]=pData[0]/340.0 + 36.53;
+  198   1              return 0;
+  199   1      }
+  200          
+  201          unsigned char getAllData(MPU6050_t *obj,float *an,float* t,float *gn)//An[3]
+  202          {
+  203   1              unsigned char pRaw[14]={0};
+  204   1              if(getAllRaw(obj, pRaw))
+  205   1              {
+  206   2                      return 1;
+  207   2              }
+  208   1              an[0]=(int)(pRaw[0]<<8|pRaw[1]);
+  209   1              an[1]=(int)(pRaw[2]<<8|pRaw[3]);
+  210   1              an[2]=(int)(pRaw[4]<<8|pRaw[5]);
+  211   1              an[0]=(an[0] - (-32767.0)) / (32767.0-(-32767.0)) * (16.0-(-16.0)) + (-16.0);
+  212   1              an[1]=(an[1] - (-32767.0)) / (32767.0-(-32767.0)) * (16.0-(-16.0)) + (-16.0);
+  213   1              an[2]=(an[2] - (-32767.0)) / (32767.0-(-32767.0)) * (16.0-(-16.0)) + (-16.0);
+  214   1      
+  215   1              *t=(int)(pRaw[6]<<8|pRaw[7]);
+  216   1              *t=*t/340.0 + 36.53;
+  217   1      
+  218   1              gn[0]=(int)(pRaw[8]<<8|pRaw[9]);
+  219   1              gn[1]=(int)(pRaw[10]<<8|pRaw[11]);
+  220   1              gn[2]=(int)(pRaw[12]<<8|pRaw[13]);
+  221   1              gn[0]=(gn[0] - (-32767.0)) / (32767.0-(-32767.0)) * (16.0-(-16.0)) + (-16.0);
+  222   1              gn[1]=(gn[1] - (-32767.0)) / (32767.0-(-32767.0)) * (16.0-(-16.0)) + (-16.0);
+  223   1              gn[2]=(gn[2] - (-32767.0)) / (32767.0-(-32767.0)) * (16.0-(-16.0)) + (-16.0);
+  224   1              return 0;
+  225   1      }
+  226          
+  227          unsigned char getAll(MPU6050_t *obj,unsigned char *pRaw,float *an,float* t,float *gn)//An[3]
+  228          {
+  229   1              if(getAllRaw(obj, pRaw))
+  230   1              {
+  231   2                      return 1;
+  232   2              }
+  233   1              an[0]=(int)(pRaw[0]<<8|pRaw[1]);
+  234   1              an[1]=(int)(pRaw[2]<<8|pRaw[3]);
+  235   1              an[2]=(int)(pRaw[4]<<8|pRaw[5]);
+  236   1              an[0]=(an[0] - (-32767.0)) / (32767.0-(-32767.0)) * (16.0-(-16.0)) + (-16.0);
+  237   1              an[1]=(an[1] - (-32767.0)) / (32767.0-(-32767.0)) * (16.0-(-16.0)) + (-16.0);
+  238   1              an[2]=(an[2] - (-32767.0)) / (32767.0-(-32767.0)) * (16.0-(-16.0)) + (-16.0);
+  239   1      
+  240   1              *t=(int)(pRaw[6]<<8|pRaw[7]);
+  241   1              *t=*t/340.0 + 36.53;
+  242   1      
+  243   1              gn[0]=(int)(pRaw[8]<<8|pRaw[9]);
+  244   1              gn[1]=(int)(pRaw[10]<<8|pRaw[11]);
+  245   1              gn[2]=(int)(pRaw[12]<<8|pRaw[13]);
+  246   1              gn[0]=(gn[0] - (-32767.0)) / (32767.0-(-32767.0)) * (16.0-(-16.0)) + (-16.0);
+  247   1              gn[1]=(gn[1] - (-32767.0)) / (32767.0-(-32767.0)) * (16.0-(-16.0)) + (-16.0);
+  248   1              gn[2]=(gn[2] - (-32767.0)) / (32767.0-(-32767.0)) * (16.0-(-16.0)) + (-16.0);
+  249   1              return 0;
+  250   1      }
+  251          
+  252          
+  253          unsigned char mpu6050_getAngleGn(MPU6050_t *obj,float* pitch,float* roll,float* gx,float* gy)
+  254          {
+  255   1              static int ax;
+C251 COMPILER V5.60.0,  MPU6050                                                            31/07/24  06:59:01  PAGE 5   
+
+  256   1              static int ay;
+  257   1              static int az;
+  258   1              unsigned char pRaw[14]={0};
+  259   1              unsigned int sqrt_temp=0;
+  260   1              if(getAllRaw(obj, pRaw)==0)
+  261   1              {
+  262   2                      ax=((int)pRaw[0]<<8|pRaw[1]);
+  263   2                      ay=((int)pRaw[2]<<8|pRaw[3]);
+  264   2                      az=((int)pRaw[4]<<8|pRaw[5]);
+  265   2                      *gx=((int)pRaw[8]<<8|pRaw[9]);
+  266   2                      *gy=((int)pRaw[10]<<8)|pRaw[11];
+  267   2                      #ifdef DEBUG
+               //              OLED_Showdecimal(0,0,Accel_Z_RAW,8,3,12, 0);
+                               #endif
+  270   2              }
+  271   1              else
+  272   1              {
+  273   2                      return 1;
+  274   2              }
+  275   1              *pitch = atan2(-ax, az) * RAD_TO_DEG;
+  276   1              *roll  = atan2( ay, az) * RAD_TO_DEG;
+  277   1              return 0;
+  278   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      2664     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =         6         97
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        40     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

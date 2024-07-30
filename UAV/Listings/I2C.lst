@@ -1,0 +1,372 @@
+C251 COMPILER V5.60.0,  I2C                                                                31/07/24  06:59:01  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE I2C
+OBJECT MODULE PLACED IN .\Objects\I2C.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE Code\I2C.c XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEBUG PR
+                    -INT(.\Listings\I2C.lst) OBJECT(.\Objects\I2C.obj) 
+
+stmt  level    source
+
+    1          #include <STC8051U.H>
+    2          #include "I2C.h"
+    3          #include "intrins.h"
+    4          #include "uart.h"
+    5          #define NO_ACTION                       0000
+    6          #define START                           0001
+    7          #define WRITE                           0010
+    8          #define RACK                            0011
+    9          #define READ                            0100
+   10          #define WACK                            0101
+   11          #define STOP                            0110
+   12          #define START_WRITE_RACK        1001
+   13          #define WRITE_RACK              1010
+   14          #define READ_WACK                       1011
+   15          #define READ_WNAK               1100
+   16          
+   17          sbit SDA = P2^3;
+   18          sbit SCL = P2^4;
+   19          
+   20          static void delayxms(unsigned int xms)  //@11.0592MHz
+   21          {
+   22   1              unsigned long edata i;
+   23   1              unsigned char j=0;
+   24   1              while(xms--)
+   25   1              {
+   26   2                      for(j=0;j<13;j++)
+   27   2                      {
+   28   3                              _nop_();
+   29   3                              _nop_();
+   30   3                              i = 2763UL;
+   31   3                              while (i) i--;
+   32   3                      }
+   33   2              }
+   34   1      }
+   35          
+   36          void i2c_init()
+   37          {       
+   38   1              P_SW2 &= 0xCF;//11001111
+   39   1      //      I2CCFG=0xFD;//11 001101 低六位
+   40   1      //      I2CPSCR=0x00;//高八位  0 13
+   41   1      //      I2CMSCR=0x00;//0 000 0000 
+   42   1      //      I2CMSAUX=0x00;//0000 000 0
+   43   1      //      I2CMSST=0x00;//00 0000 0 1
+   44   1              
+   45   1              I2CCFG = 0xCD;//1100 1101
+   46   1              I2CMSST= 0x00;
+   47   1      }
+   48          
+   49          //I2C_Status i2c_mem_write(unsigned char devAddr,unsigned char reg,unsigned char *pData,unsigned char amo
+             -unt)
+   50          //{
+   51          //      if((I2CMSST&0x80)==0x80)
+   52          //      {
+   53          //              return I2C_BUSY;
+   54          //      }
+   55          //      /*写设备地址*/
+   56          //      I2CTXD=devAddr;//地址
+   57          //      I2CMSCR=START_WRITE_RACK;
+C251 COMPILER V5.60.0,  I2C                                                                31/07/24  06:59:01  PAGE 2   
+
+   58          //      if((I2CMSST&0x02)!=0x00)//检查应答
+   59          //      {
+   60          //              unsigned char uart_data=I2CMSST;
+   61          //              uart_send(&uart_data);
+   62          //              return I2C_ERROR;
+   63          //      }               
+   64          //      /*写寄存器地址*/
+   65          //      I2CTXD=reg;
+   66          //      I2CMSCR=WRITE_RACK;
+   67          //      if((I2CMSST&0x02)!=0x00)//检查应答
+   68          //      {
+   69          //              return I2C_ERROR;
+   70          //      }
+   71          //              
+   72          //      for(;amount==0;amount--)
+   73          //      {
+   74          
+   75          //              /*写数据*/
+   76          //              I2CTXD=*pData;
+   77          //              I2CMSCR=WRITE_RACK;
+   78          //              if((I2CMSST&0x02)!=0x00)//检查应答
+   79          //              {
+   80          //                      return I2C_ERROR;
+   81          //              }
+   82          //      }
+   83          //      I2CMSCR=STOP;
+   84          //      return I2C_OK;
+   85          //}
+   86          
+   87          //I2C_Status i2c_mem_read(unsigned char devAddr, unsigned char reg,unsigned char *pData,unsigned char amo
+             -unt)
+   88          //{
+   89          //      if((I2CMSST&0x80)==1)
+   90          //      {
+   91          //              return I2C_BUSY;
+   92          //      }
+   93          //      /*写设备地址*/
+   94          //      I2CTXD=devAddr;//地址
+   95          //      I2CMSCR=START_WRITE_RACK;
+   96          //      if((I2CMSST&0x02)!=0)//检查应答
+   97          //      {
+   98          //              return I2C_ERROR;
+   99          //      }
+  100          //      /*写寄存器地址*/
+  101          //      I2CTXD=reg;
+  102          //      I2CMSCR=WRITE_RACK;
+  103          //      if((I2CMSST&0x02)!=0)//检查应答
+  104          //      {
+  105          //              return I2C_ERROR;
+  106          //      }
+  107          //      for(;amount==0;amount--)
+  108          //      {
+  109          //              /*读数据*/
+  110          //              I2CTXD=*pData;
+  111          //              I2CMSCR=READ_WACK;
+  112          //      }
+  113          //      I2CMSCR=STOP;
+  114          //      return I2C_OK;
+  115          //}
+  116          
+  117          void Wait()
+  118          {
+  119   1              
+  120   1              while(!(I2CMSST&0x40));
+  121   1              I2CMSST &= ~0x40;
+  122   1      }
+C251 COMPILER V5.60.0,  I2C                                                                31/07/24  06:59:01  PAGE 3   
+
+  123          
+  124          void Start()
+  125          {
+  126   1              I2CMSCR=0x01; //发送START命令
+  127   1              Wait();
+  128   1      }
+  129          
+  130          void SendData(unsigned dat)
+  131          {
+  132   1              I2CTXD=dat;      //写数据到数据缓冲区
+  133   1              I2CMSCR=0x02;//发送SEND命令
+  134   1              Wait();
+  135   1      }
+  136          
+  137          void RecvACK()
+  138          {
+  139   1              I2CMSCR=0x03; //发送读ACK命令
+  140   1              
+  141   1              Wait();
+  142   1              
+  143   1      }
+  144          
+  145          unsigned char RecvData()
+  146          {
+  147   1              I2CMSCR=0x04; //发送RECV命令
+  148   1              Wait();
+  149   1              return I2CRXD;
+  150   1      }
+  151          
+  152          void SendACK()
+  153          {
+  154   1              I2CMSST=0x00;//设置ACK信号
+  155   1              I2CMSCR=0x05;//发送ACK命令
+  156   1              Wait();
+  157   1      }
+  158          
+  159          void SendNAK()
+  160          {
+  161   1              I2CMSST = 0x01;//设置NAK信号
+  162   1              I2CMSCR = 0x05;//发送ACK命令
+  163   1              Wait();
+  164   1      }
+  165          
+  166          void Stop()
+  167          {
+  168   1              I2CMSCR=0x06; //发送STOP命令
+  169   1              Wait();
+  170   1      }
+  171          
+  172          void Delay()
+  173          {
+  174   1              int i;
+  175   1              
+  176   1              for(i=0;i<3000;i++)
+  177   1              {
+  178   2                      _nop_();
+  179   2                      _nop_();
+  180   2                      _nop_();
+  181   2                      _nop_();
+  182   2              }
+  183   1      }
+  184          
+  185          unsigned char i2c_mem_write(unsigned char devAddr,unsigned char reg,unsigned char *pData,unsigned char am
+             -ount)
+  186          {
+  187   1              unsigned char i;
+C251 COMPILER V5.60.0,  I2C                                                                31/07/24  06:59:01  PAGE 4   
+
+  188   1              if((I2CMSST&0x80)==0x80)//总线忙碌等待释放
+  189   1              {
+  190   2                      return 1;
+  191   2              }
+  192   1      //      while((I2CMSST&0x80)==0x80);
+  193   1              Start();//发送ST
+  194   1              SendData(devAddr<<1);//发送设备地址加写命令
+  195   1              RecvACK();//接收应答
+  196   1              SendData(reg);//发送存储地址
+  197   1              RecvACK();//接收应答
+  198   1              for(i=0;i<amount;i++)
+  199   1              {
+  200   2                      SendData(*(pData+i)); //发送数据
+  201   2                      RecvACK();
+  202   2              }
+  203   1              Stop();//通信结束
+  204   1              return 0;
+  205   1      }
+  206          
+  207          unsigned char i2c_mem_read(unsigned char devAddr,unsigned char reg,unsigned char *pData,unsigned char amo
+             -unt)
+  208          {
+  209   1              unsigned char i;
+  210   1              if((I2CMSST&0x80)==0x80)//总线忙碌等待释放
+  211   1              {
+  212   2                      return 1;
+  213   2              }
+  214   1      //      while((I2CMSST&0x80)==0x80);
+  215   1              Start();//发送ST
+  216   1              SendData(devAddr<<1);//发送设备地址加写命令
+  217   1              RecvACK();//接收应答
+  218   1              SendData(reg);//发送存储地址
+  219   1              RecvACK();//接收应答
+  220   1              Start();//发送SR
+  221   1              SendData((devAddr<<1)+1);//发送设备地址加读命令
+  222   1              RecvACK();//接收应答
+  223   1              for(i=0;i<amount;i++)
+  224   1              {
+  225   2                      *(pData+i)=RecvData(); //接收数据
+  226   2                      if(i!=amount-1)
+  227   2                      {
+  228   3                              SendACK();//发送应答
+  229   3                      }
+  230   2              }
+  231   1              SendNAK();//发送未应答
+  232   1              Stop();//通信结束
+  233   1              return 0;
+  234   1      }
+  235          
+  236          //I2C_Status i2c_mem_write(unsigned char devAddr,unsigned char reg,unsigned char *pData,unsigned char amo
+             -unt)
+  237          //{
+  238          //      unsigned char i;
+  239          //      if((I2CMSST&0x80)==0x80)
+  240          //      {
+  241          //              return I2C_BUSY;
+  242          //      }
+  243          //      
+  244          //      I2CTXD=devAddr<<1;
+  245          //      
+  246          //      I2CMSCR=START_WRITE_RACK; //发送设备地址并接收应答
+  247          //      if((I2CMSST&0x02)==0x02)
+  248          //      {
+  249          //              {
+  250          //                      unsigned char u=I2CMSST;
+  251          //                      uart_send(&u);
+C251 COMPILER V5.60.0,  I2C                                                                31/07/24  06:59:01  PAGE 5   
+
+  252          //              }
+  253          //              return I2C_ERROR;
+  254          //      }
+  255          //      I2CTXD=reg;
+  256          //      I2CMSCR=WRITE_RACK;     //发送子地址并接收应答
+  257          //      if((I2CMSST&0x02)==0x02)
+  258          //      {
+  259          //              return I2C_ERROR;
+  260          //      }
+  261          //      for(i=0;i<amount;i++)
+  262          //      {
+  263          //              I2CTXD=*(pData+i);
+  264          //              I2CMSCR=WRITE_RACK; //发送数据并接收应答
+  265          //              if((I2CMSST&0x02)==0x02)
+  266          //              {
+  267          //                      return I2C_ERROR;
+  268          //              }
+  269          //      }
+  270          //      I2CMSCR=STOP;//发送SP
+  271          //      return I2C_OK;
+  272          //}
+  273          
+  274          //I2C_Status i2c_mem_read(unsigned char devAddr,unsigned char reg,unsigned char *pData,unsigned char amou
+             -nt)
+  275          //{
+  276          //      unsigned char i;
+  277          //      if((I2CMSST&0x80)==0x80)
+  278          //      {
+  279          //              return I2C_BUSY;
+  280          //      }
+  281          //      I2CMSCR=START;//发送ST
+  282          //      
+  283          //      I2CTXD=devAddr<<1;
+  284          //      I2CMSCR=START_WRITE_RACK; //发送设备地址并接收应答
+  285          //      if((I2CMSST&0x02)==0x02)
+  286          //      {
+  287          //              return I2C_ERROR;
+  288          //      }
+  289          //      
+  290          //      I2CTXD=reg;
+  291          //      I2CMSCR=WRITE_RACK;     //发送子地址并接收应答
+  292          //      if((I2CMSST&0x02)==0x02)
+  293          //      {
+  294          //              return I2C_ERROR;
+  295          //      }
+  296          //      
+  297          //      I2CMSCR=START;//发送SR 
+  298          //      
+  299          //      I2CTXD=devAddr<<1+1;
+  300          //      I2CMSCR=START_WRITE_RACK; //发送设备地址并接收应答
+  301          //      if((I2CMSST&0x02)==0x02)
+  302          //      {
+  303          //              return I2C_ERROR;
+  304          //      }
+  305          //      for(i=0;i<amount;i++)
+  306          //      {
+  307          //              
+  308          //              if(i!=amount-1)
+  309          //              {
+  310          //                      I2CMSCR=READ_WACK; //接收数据并写入ACK
+  311          //                      *(pData+i)=I2CRXD;
+  312          //              }
+  313          //              else
+  314          //              {
+  315          //                      I2CMSCR=READ_WNAK;//接收数据并写入NAK
+  316          //                      *(pData+i)=I2CRXD;
+C251 COMPILER V5.60.0,  I2C                                                                31/07/24  06:59:01  PAGE 6   
+
+  317          //              }
+  318          //      }
+  319          //      I2CMSCR=STOP;//发送SP
+  320          //      return I2C_OK;
+  321          //}
+*** WARNING C174 IN LINE 20 OF Code\I2C.c: 'delayxms': unreferenced 'static' function
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       539     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------          8
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)
