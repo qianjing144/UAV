@@ -1,0 +1,48 @@
+C251 COMPILER V5.60.0,  timer                                                              31/07/24  22:43:52  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE timer
+OBJECT MODULE PLACED IN .\Objects\timer.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE Code\timer.c XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEBUG 
+                    -PRINT(.\Listings\timer.lst) OBJECT(.\Objects\timer.obj) 
+
+stmt  level    source
+
+    1          #include <STC8051U.H>
+    2          
+    3          //void Timer3_Isr(void) interrupt 19
+    4          //{
+    5          //}
+    6          
+    7          void timer3_init(void)          //1毫秒@24.000MHz
+    8          {
+    9   1              T4T3M |= 0x02;                  //定时器时钟1T模式
+   10   1              T3L = (65535-24000);                            //设置定时初始值
+   11   1              T3H = (65535-24000)>>8;                         //设置定时初始值
+   12   1              T4T3M |= 0x08;                  //定时器3开始计时
+   13   1              IE2 |= 0x20;                    //使能定时器3中断
+   14   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =        16     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

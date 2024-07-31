@@ -1,0 +1,206 @@
+C251 COMPILER V5.60.0,  LPS22HH                                                            31/07/24  22:43:51  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE LPS22HH
+OBJECT MODULE PLACED IN .\Objects\LPS22HH.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE Code\LPS22HH.c XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEBU
+                    -G PRINT(.\Listings\LPS22HH.lst) OBJECT(.\Objects\LPS22HH.obj) 
+
+stmt  level    source
+
+    1          #include <intrins.h>
+    2          #include <math.h>
+    3          #include "LPS22HH.h"
+    4          #include "i2c.h"
+    5          #include "UART.h"
+    6          #include "main.h"
+    7          #include "oled.h"
+    8          
+    9          #define INTERRUPT_CFG 0x0B
+   10          #define THS_P_L 0x0C
+   11          #define THS_P_H 0x0D
+   12          #define IF_CTRL 0x0E
+   13          #define WHO_AM_I 0x0F
+   14          #define CTRL_REGn 0x10//3Byte
+   15          #define RESET 0x11//CTRL_REG2
+   16          #define FIFO_WTM 0x14
+   17          #define REF_P_L 0x15
+   18          #define REF_P_H 0x16
+   19          #define RPDS_L 0x18
+   20          #define RPDS_H 0x19
+   21          #define INT_SOURCE 0x24
+   22          #define FIFO_STATUSn 0x25//2Byte
+   23          #define STATUS 0x27
+   24          #define PRESS_OUTn 0X28//3Byte XL L H
+   25          #define TEMP_OUTn 0x2B//2Byte L H
+   26          #define FIFO_DATA_OUT_PRESSn 0x78//3Byte Xl L H
+   27          #define FIFO_DATA_OUT_TEMPn 0x7B//2Byte L H
+   28          
+   29          #define SET_INTERRUPT_CFG 0x00//0000 0000
+   30          #define SET_IF_CTRL 0x02//0000 0010
+   31          #define SET_CTRL_REG1 0x7E//0111 1110
+   32          #define SET_CTRL_REG2 0x90//1001 0000
+   33          #define RESET_OP 0x04//0000 0100 复位
+   34          #define SET_CRTL_REG3 0x04//0000 0000
+   35          
+   36          
+   37          
+   38          //float prs=0.0f;//hPa
+   39          //float tmp=0.0f;//℃
+   40          //float alt=0.0f;//m
+   41          
+   42          static void delayxms(unsigned long xms) //@11.0592MHz
+   43          {
+   44   1              unsigned long edata i;
+   45   1              unsigned char j=0;
+   46   1              while(xms--)
+   47   1              {
+   48   2                      for(j=0;j<13;j++)
+   49   2                      {
+   50   3                              _nop_();
+   51   3                              _nop_();
+   52   3                              i = 2763UL;
+   53   3                              while (i) i--;
+   54   3                      }
+   55   2              }
+   56   1      }
+   57          
+   58          static void write_reg(unsigned char devAddr,unsigned char reg,unsigned char *pData, unsigned char amount)
+C251 COMPILER V5.60.0,  LPS22HH                                                            31/07/24  22:43:51  PAGE 2   
+
+   59          {
+   60   1      //      if(i2c_mem_write(devAddr,reg,pData,amount)!=I2C_OK) {
+   61   1      //              return 1;
+   62   1      //      }
+   63   1      //      return 0;
+   64   1              
+   65   1              
+   66   1              i2c_mem_write(devAddr,reg,pData,amount);
+   67   1      }
+   68          static void read_reg(unsigned char devAddr,unsigned char reg,unsigned char *pData, unsigned char amount)
+   69          {
+   70   1      //      if(i2c_mem_read(devAddr, reg, pData, amount)!=I2C_OK) {
+   71   1      //              return 1;
+   72   1      //      }
+   73   1      //      return 0;
+   74   1              i2c_mem_read(devAddr,reg,pData,amount);
+   75   1      }
+   76          
+   77          void lps22hh_reset(LPS22HH_t* obj)
+   78          {
+   79   1              unsigned char cmd=0x00; 
+   80   1              cmd=RESET_OP;
+   81   1              write_reg(obj->devAddr,RESET,&cmd,1);
+   82   1      }
+   83          
+   84          
+   85          unsigned char lps22hh_init(LPS22HH_t* obj)
+   86          {
+   87   1              unsigned char cmd[3]={0};
+   88   1              read_reg(obj->devAddr, WHO_AM_I, cmd, 1);
+   89   1              
+   90   1              if(cmd[0]!=0xB3)
+   91   1              {
+   92   2                      return 1;
+   93   2              }
+   94   1              
+   95   1              lps22hh_reset(obj);
+   96   1              cmd[0]=SET_IF_CTRL;
+   97   1              write_reg(obj->devAddr,IF_CTRL, cmd, 1);//设置IF_CTRL
+   98   1              
+   99   1              cmd[0]=SET_CTRL_REG1;
+  100   1              cmd[1]=SET_CTRL_REG2;
+  101   1              cmd[2]=SET_CRTL_REG3;
+  102   1              write_reg(obj->devAddr,CTRL_REGn,cmd,3);//设置CTRL_REGn
+  103   1              for(;;) {
+  104   2                      read_reg(obj->devAddr,INT_SOURCE, cmd, 1);
+  105   2                      if((cmd[0]&0x80)==0x00) {//检查是否启动完成 0x00启动完成 0x80正在启动
+  106   3                              break;
+  107   3                      }
+  108   2              }
+  109   1              return 0;
+  110   1      }
+  111          
+  112          unsigned char lps22hh_get_tmp(LPS22HH_t* obj,float *tmp)
+  113          {
+  114   1              unsigned char cmd=0x00; 
+  115   1              unsigned char buf[2]={0};
+  116   1              unsigned int raw=0;
+  117   1              read_reg(obj->devAddr,STATUS, &cmd, 1);
+  118   1              if((cmd&0x22)!=0x22)  //0010 0010
+  119   1              {
+  120   2                      return 1;
+  121   2              }
+  122   1              read_reg(obj->devAddr,TEMP_OUTn, buf, 2);
+  123   1              *tmp=((int)buf[1]<<8 | buf[0])/100.0;
+  124   1              return 0;
+C251 COMPILER V5.60.0,  LPS22HH                                                            31/07/24  22:43:51  PAGE 3   
+
+  125   1      }
+  126          
+  127          unsigned char lps22hh_get_prs(LPS22HH_t* obj,float *prs)
+  128          {
+  129   1              unsigned char buf[3]={0};
+  130   1              unsigned char cmd=0x00; 
+  131   1              read_reg(obj->devAddr,STATUS, &cmd, 1);
+  132   1              if((cmd&0x11)!=0x11) { //0001 0001
+  133   2                      return 1;
+  134   2              }
+  135   1              read_reg(obj->devAddr,PRESS_OUTn, buf, 3);
+  136   1      #ifdef DEBUG
+               //      delayxms(50);
+               //      OLED_ShowNum(0,0,buf[0],3,12,0);//3E
+               //      OLED_ShowNum(0,1,buf[1],3,12,0);//17
+               //      OLED_ShowNum(0,2,buf[2],3,12,0);//7D
+               #endif
+  142   1              *prs=((long)buf[2]<<16|(int)buf[1]<<8|buf[0])/4096.0;
+  143   1              return 0;
+  144   1      }
+  145          
+  146          unsigned char lps22hh_get_alt(LPS22HH_t* obj,float *alt)
+  147          {
+  148   1              float prs=0;
+  149   1              float tmp=0;
+  150   1              unsigned char cmd=0x00; 
+  151   1              unsigned char buf[5]={0};
+  152   1              
+  153   1              read_reg(obj->devAddr,STATUS,&cmd,1);
+  154   1              
+  155   1              if((cmd&0x33)!=0x33)
+  156   1              {
+  157   2                      return 1;
+  158   2              }
+  159   1              
+  160   1      //      delayxms(10);
+  161   1              read_reg(obj->devAddr,PRESS_OUTn, buf, 5);
+  162   1              
+  163   1              prs=((long)buf[2]<<16|(int)buf[1]<<8|buf[0])/4096.0;
+  164   1              tmp=((int)buf[1]<<8|buf[0])/100.0;
+  165   1              *alt=(((pow(1013.25/prs,1/5.257))-1)*(tmp+273.15))/0.0065;
+  166   1              return 0;
+  167   1      }
+*** WARNING C174 IN LINE 42 OF Code\LPS22HH.c: 'delayxms': unreferenced 'static' function
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       735     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------         29
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        13     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

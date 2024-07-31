@@ -1,0 +1,184 @@
+C251 COMPILER V5.60.0,  QMC5883L                                                           31/07/24  22:43:52  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE QMC5883L
+OBJECT MODULE PLACED IN .\Objects\QMC5883L.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE Code\QMC5883L.c XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEB
+                    -UG PRINT(.\Listings\QMC5883L.lst) OBJECT(.\Objects\QMC5883L.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * QMC5883L.c
+    3           *
+    4           *  Created on: Jul 18, 2024
+    5           *      Author: qian-jing
+    6           */
+    7          
+    8          #include "QMC5883L.h"
+    9          #ifdef DEBUG
+               #include "oled.h"
+               #endif
+   12          #include <math.h>
+   13          #include <stdlib.h>
+   14          //L->H 2Byte
+   15          #define DATA_OUTPUT_X 0x00
+   16          #define DATA_OUTPUT_Y 0x02
+   17          #define DATA_OUTPUT_Z 0x04
+   18          #define STATUS 0x06
+   19          #define DATA_OUTPUT_T 0x07
+   20          #define CONTROL1 0x09 //2BYTE
+   21          #define CONTROL2 0x0A
+   22          #define SR_PERIOD 0x0B //SR:SET_OR_RESET
+   23          #define ID 0x0D
+   24          
+   25          #define CalThreshold 0
+   26          #define MAG_DEC 0//磁偏角
+   27          
+   28          #define M_PI 3.14159265358979323846
+   29          
+   30          float offsetX=-0.14699;
+   31          float offsetY=0.057160;
+   32          
+   33          static unsigned char write_reg(QMC5883L_t *obj,unsigned char reg,unsigned char *pData,unsigned char amoun
+             -t)
+   34          {
+   35   1              i2c_mem_write(obj->devAddr,reg,pData,amount);
+   36   1              return 0;
+   37   1      }
+   38          
+   39          static unsigned char read_reg(QMC5883L_t *obj,unsigned char reg,unsigned char *pData,unsigned char amount
+             -)
+   40          {
+   41   1              i2c_mem_read(obj->devAddr,reg,pData,amount);
+   42   1              return 0;
+   43   1      }
+   44          
+   45          unsigned char qmc5883l_init(QMC5883L_t *obj)
+   46          {
+   47   1              unsigned char pData[1];
+   48   1              unsigned char status=0;
+   49   1              status=read_reg(obj, ID, pData, 1);
+   50   1              if(*pData!=0xFF)
+   51   1              {
+   52   2                      return 1;
+   53   2              }
+   54   1              pData[0]=0x80;
+   55   1              status=write_reg(obj, CONTROL2, pData, 1);//RESET
+   56   1              pData[0]=0x1D;//default 0001 1101
+C251 COMPILER V5.60.0,  QMC5883L                                                           31/07/24  22:43:52  PAGE 2   
+
+   57   1              status=write_reg(obj, CONTROL1, pData, 1);
+   58   1              pData[0]=0x00;//0000 0000
+   59   1              status=write_reg(obj, CONTROL2, pData, 1);
+   60   1              pData[0]=0x01;//recommended
+   61   1              status=write_reg(obj, SR_PERIOD, pData, 1);
+   62   1              return status;
+   63   1      }
+   64          
+   65          unsigned char qmc5883l_calibrate(QMC5883L_t *obj)
+   66          {
+   67   1              unsigned char status=0;
+   68   1              unsigned char ready_status=0;
+   69   1              unsigned char raw[6]={0};
+   70   1              float x=0,y=0;
+   71   1              float xMin,xMax,yMin,yMax;
+   72   1              offsetX=offsetY=0;
+   73   1              xMin=xMax=yMin=yMax=0;
+   74   1              while(1)
+   75   1              {
+   76   2                      status=read_reg(obj, STATUS, &ready_status, 1);
+   77   2                      if((ready_status&0x01)!=0x01)
+   78   2                      {
+   79   3                              continue;
+   80   3                      }
+   81   2                      status=read_reg(obj, DATA_OUTPUT_X, raw, 6);
+   82   2                      x=((int)(raw[1]<<8)|raw[0])/3000.0;
+   83   2                      y=((int)(raw[3]<<8)|raw[2])/3000.0;
+   84   2                      if (x > xMax)
+   85   2                              xMax = x;
+   86   2                      if (x < xMin )
+   87   2                              xMin = x;
+   88   2                      if(y > yMax )
+   89   2                              yMax = y;
+   90   2                      if(y < yMin )
+   91   2                              yMin = y;
+   92   2      //              if(z > zMax )
+   93   2      //                      zMax = z;
+   94   2      //              if(z < zMin )
+   95   2      //                      zMin = z;
+   96   2                      if(fabs(xMax - xMin) > CalThreshold )
+   97   2                              offsetX = (xMax + xMin)/2;
+   98   2                      if(fabs(yMax - yMin) > CalThreshold )
+   99   2                              offsetY = (yMax + yMin)/2;
+  100   2                      #ifdef DEBUG
+                               OLED_Showdecimal(0, 0, offsetX, 1, 5, 12, 0);
+                               OLED_Showdecimal(64, 0, offsetY, 1, 5, 12, 0);
+                               OLED_Showdecimal(0, 1, xMax, 1, 5, 12, 0);
+                               OLED_Showdecimal(0, 2, yMax, 1, 5, 12, 0);
+                               OLED_Showdecimal(0, 3, xMin, 1, 5, 12, 0);
+                               OLED_Showdecimal(0, 4, yMin, 1, 5, 12, 0);
+                               #endif
+  108   2              }
+  109   1      
+  110   1      //      if(abs(zMax - zMin) > CalThreshold )
+  111   1      //              offsetZ = (zMax +zMin)/2;
+  112   1              return status;
+  113   1      }
+  114          
+  115          unsigned char qmc5883l_getHeading(QMC5883L_t *obj,float *heading)
+  116          {
+  117   1              unsigned char raw[6]={0};
+  118   1      //      unsigned char x=0,y=0,z=0;
+  119   1              float x=0,y=0;
+  120   1              unsigned char status=0;
+  121   1              unsigned char ready_status=0;
+  122   1              status=read_reg(obj, STATUS, &ready_status, 1);
+C251 COMPILER V5.60.0,  QMC5883L                                                           31/07/24  22:43:52  PAGE 3   
+
+  123   1              if((ready_status&0x01)!=0x01)
+  124   1              {
+  125   2                      return 1;
+  126   2              }
+  127   1              status=read_reg(obj, DATA_OUTPUT_X, raw, 6);
+  128   1              x=((int)(raw[1]<<8)|raw[0])/3000.0;
+  129   1              y=((int)(raw[3]<<8)|raw[2])/3000.0;
+  130   1      //      z=(int)(raw[5]<<8)|raw[4];
+  131   1      
+  132   1              *heading=atan2(y-offsetY,x-offsetX);
+  133   1              if(*heading<0)
+  134   1              {
+  135   2                      *heading+=2*(float)M_PI;
+  136   2              }
+  137   1              *heading*=180/M_PI;
+  138   1              *heading+=MAG_DEC;
+  139   1              if(*heading>360)
+  140   1              {
+  141   2                      *heading-=360;
+  142   2              }
+  143   1              return status;
+  144   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       843     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =         8         50
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        28     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

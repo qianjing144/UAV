@@ -1,0 +1,1 @@
+"Code\motor.c" XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEBUG PRINT(.\Listings\motor.lst) OBJECT(.\Objects\motor.obj)

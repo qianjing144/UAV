@@ -1,0 +1,105 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Tool Versions:</h2>
+IDE-Version: ¦ÌVision V5.25.3.0
+Copyright (C) 2018 ARM Ltd and ARM Germany GmbH. All rights reserved.
+License Information: 1 1, 1, LIC=CZURY-IAZUQ-KT63I-TY8FI-DAAN4-KDDS2
+ 
+Tool Versions:
+Toolchain:       PK251 Prof. Developers Kit  Version: 5.60.0.0
+Toolchain Path:  C:\Keil_v5\C251\BIN
+C Compiler:      C251.exe V5.60.0.0
+Assembler:       A251.exe V4.69.13.0
+Linker/Locator:  L251.exe V4.66.93.0
+Library Manager: LIB251.exe V4.30.1.0
+Hex Converter:   OH251.exe V1.47.0.0
+CPU DLL:         S251.DLL V3.129.0.0
+Dialog DLL:      DCORE51.DLL V2.81.6.0 
+<h2>Project:</h2>
+D:\UAV\project.uvproj
+Project File Date:  07/31/2024
+
+<h2>Output:</h2>
+Rebuild target 'Target 1'
+compiling I2C.c...
+Code\I2C.c(20): warning C174: 'delayxms': unreferenced 'static' function
+compiling LPS22HH.c...
+Code\LPS22HH.c(42): warning C174: 'delayxms': unreferenced 'static' function
+compiling main.c...
+Code\main.c(391): warning C188: 'parameter 1': value truncated
+Code\main.c(402): warning C188: 'parameter 1': value truncated
+compiling UART.c...
+compiling SBUS.c...
+compiling timer.c...
+compiling MPU6050.c...
+compiling QMC5883L.c...
+compiling motor.c...
+compiling PID.c...
+compiling oled.c...
+Debugware\oled.c(481): warning C38: empty translation unit
+compiling oledfont.c...
+Debugware\oledfont.c(231): warning C38: empty translation unit
+linking...
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    delayxms/I2C
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    Delay?/I2C
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    delayxms/LPS22HH
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    lps22hh_get_tmp?/LPS22HH
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    lps22hh_get_prs?/LPS22HH
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    Yaw?/main
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    Height?/main
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    uart1_sendString?/UART
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    getGnRaw?/MPU6050
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    mpu6050_getAn?/MPU6050
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    mpu6050_getGn?/MPU6050
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    mpu6050_getT?/MPU6050
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    getAllData?/MPU6050
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    getAll?/MPU6050
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    SQRT/STC32F_FPMU
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    FXAM/STC32F_FPMU
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    SIN/STC32F_FPMU
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    COS/STC32F_FPMU
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    TAN/STC32F_FPMU
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    FCASTC/STC32F_FPMU
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    FCLEX/STC32F_FPMU
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    FINIT/STC32F_FPMU
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    FPSRR/STC32F_FPMU
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    FPSRW/STC32F_FPMU
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    FPCRR/STC32F_FPMU
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    FPCRW/STC32F_FPMU
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    NAME:    qmc5883l_calibrate?/QMC5883L
+Program Size: data=8.0 edata+hdata=664 xdata=25 const=395 code=9221
+creating hex file from ".\Objects\project"...
+".\Objects\project" - 0 Error(s), 33 Warning(s).
+Build Time Elapsed:  00:00:02
+</pre>
+</body>
+</html>
