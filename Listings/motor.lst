@@ -1,0 +1,228 @@
+C251 COMPILER V5.60.0,  motor                                                              10/08/24  08:39:10  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE motor
+OBJECT MODULE PLACED IN .\Objects\motor.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE Code\motor.c XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEBUG 
+                    -PRINT(.\Listings\motor.lst) OBJECT(.\Objects\motor.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * motor.c
+    3           *
+    4           *  Created on: Jul 13, 2024
+    5           *      Author: qian-jing
+    6           */
+    7          #include <STC8051U.H>
+    8          #include <intrins.h>
+    9          #include "main.h"
+   10          #include "motor.h"
+   11          #include "timer.h"
+   12          #ifdef DEBUG
+               #include "oled.h"
+               #endif
+   15          
+   16          #define PWM1_0 0x00
+   17          #define PWM1_1 0x01
+   18          #define PWM1_2 0x02
+   19          
+   20          #define PWM2_0 0x00
+   21          #define PWM2_1 0x04
+   22          #define PWM2_2 0x08
+   23          
+   24          #define PWM3_0 0x00
+   25          #define PWM3_1 0x10
+   26          #define PWM3_2 0x20
+   27          
+   28          #define PWM4_0 0x00
+   29          #define PWM4_1 0x40
+   30          #define PWM4_2 0x80
+   31          #define PWM4_3 0xC0
+   32          
+   33          #define ENO1P  0x01
+   34          #define ENO1N  0x02
+   35          #define ENO2P  0x04
+   36          #define ENO2N  0x08
+   37          #define ENO3P  0x10
+   38          #define ENO3N  0x20
+   39          #define ENO4P  0x40
+   40          #define ENO4N  0x80
+   41          
+   42          void Delay300ms(void)   //@24.000MHz
+   43          {
+   44   1              unsigned long edata i;
+   45   1      
+   46   1              _nop_();
+   47   1              _nop_();
+   48   1              i = 1799998UL;
+   49   1              while (i) i--;
+   50   1      }
+   51          
+   52          
+   53          void motor_init()
+   54          {
+   55   1              
+   56   1              PWMA_PS=0x55;//01010101
+   57   1              PWMA_CCER1=0x00;
+   58   1              PWMA_CCER2=0x00;
+C251 COMPILER V5.60.0,  motor                                                              10/08/24  08:39:10  PAGE 2   
+
+   59   1      //      
+   60   1              PWMA_CCMR1=0x60;
+   61   1              PWMA_CCMR2=0x60;
+   62   1              PWMA_CCMR3=0x60;
+   63   1              PWMA_CCMR4=0x60;
+   64   1      //      
+   65   1              PWMA_CCER1=0x11;//高电平有效
+   66   1              PWMA_CCER2=0x11;//高电平有效
+   67   1              
+   68   1              //clkdiv 480  freq 50hz
+   69   1              PWMA_PSCRH=(480-1)>>8;
+   70   1              PWMA_PSCRL=(480-1);
+   71   1              PWMA_ARRH=1000>>8;
+   72   1              PWMA_ARRL=1000;
+   73   1              
+   74   1              PWMA_ENO=0x55;//0101 0101
+   75   1              PWMA_BKR=0x80;
+   76   1              PWMA_CR1=0x01;
+   77   1              {
+   78   2                      unsigned char i=0;
+   79   2                      for(i=30;i<45;i++)
+   80   2                      {
+   81   3                              motor_control(i,i,i,i);
+   82   3                              Delay300ms();
+   83   3                      }
+   84   2              }
+   85   1      }
+   86          
+   87          void motor_control(int val1,int val2,int val3,int val4)
+   88          {
+   89   1              if(val1>1000)//防止值超过1000
+   90   1              {
+   91   2                      val1=1000;//将值限定在1000
+   92   2              }
+   93   1              else if(val1<0)
+   94   1              {
+   95   2                      val1=0;
+   96   2              }
+   97   1              
+   98   1              if(val2>1000)//防止值超过1000
+   99   1              {
+  100   2                      val2=1000;//将值限定在1000
+  101   2              }
+  102   1              else if(val2<0)
+  103   1              {
+  104   2                      val2=0;
+  105   2              }
+  106   1              
+  107   1              if(val3>1000)//防止值超过1000
+  108   1              {
+  109   2                      val3=1000;//将值限定在1000
+  110   2              }
+  111   1              else if(val3<0)
+  112   1              {
+  113   2                      val3=0;
+  114   2              }
+  115   1              
+  116   1              if(val4>1000)//防止值超过1000
+  117   1              {
+  118   2                      val4=1000;//将值限定在1000
+  119   2              }
+  120   1              else if(val4<0)
+  121   1              {
+  122   2                      val4=0;
+  123   2              }
+  124   1              PWMA_CCR1H=val1>>8;
+C251 COMPILER V5.60.0,  motor                                                              10/08/24  08:39:10  PAGE 3   
+
+  125   1              PWMA_CCR1L=val1;
+  126   1              PWMA_CCR2H=val2>>8;
+  127   1              PWMA_CCR2L=val2;
+  128   1              PWMA_CCR3H=val3>>8;
+  129   1              PWMA_CCR3L=val3;
+  130   1              PWMA_CCR4H=val4>>8;
+  131   1              PWMA_CCR4L=val4;
+  132   1      }
+  133          void motor_1(int val)
+  134          {
+  135   1              if(val>1000)//防止值超过1000
+  136   1              {
+  137   2                      val=1000;//将值限定在1000
+  138   2              }
+  139   1              if(val<0)
+  140   1              {
+  141   2                      val=0;
+  142   2              }
+  143   1              PWMA_CCR1H=val>>8;
+  144   1              PWMA_CCR1L=val;
+  145   1      //      __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,val);//设置占空比
+  146   1      }
+  147          void motor_2(int val)
+  148          {
+  149   1              if(val>1000)//防止值超过1000
+  150   1              {
+  151   2                      val=1000;//将值限定在1000
+  152   2              }
+  153   1              if(val<0)
+  154   1              {
+  155   2                      val=0;
+  156   2              }
+  157   1              PWMA_CCR2H=val>>8;
+  158   1              PWMA_CCR2L=val;
+  159   1      //      __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2,val);//设置占空比
+  160   1      }
+  161          void motor_3(int val)
+  162          {
+  163   1              if(val>1000)//防止值超过1000
+  164   1              {
+  165   2                      val=1000;//将值限定在1000
+  166   2              }
+  167   1              if(val<0)
+  168   1              {
+  169   2                      val=0;
+  170   2              }
+  171   1              PWMA_CCR3H=val>>8;
+  172   1              PWMA_CCR3L=val;
+  173   1      //      __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_3,val);//设置占空比
+  174   1      }
+  175          void motor_4(int val)
+  176          {
+  177   1              if(val>1000)//防止值超过1000
+  178   1              {
+  179   2                      val=1000;//将值限定在1000
+  180   2              }
+  181   1              if(val<0)
+  182   1              {
+  183   2                      val=0;
+  184   2              }
+  185   1              PWMA_CCR4H=val>>8;
+  186   1              PWMA_CCR4L=val;
+  187   1      //      __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_4,val);//设置占空比
+  188   1      }
+
+
+C251 COMPILER V5.60.0,  motor                                                              10/08/24  08:39:10  PAGE 4   
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       509     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

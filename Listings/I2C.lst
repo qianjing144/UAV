@@ -1,0 +1,233 @@
+C251 COMPILER V5.60.0,  I2C                                                                10/08/24  08:39:09  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE I2C
+OBJECT MODULE PLACED IN .\Objects\I2C.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE Code\I2C.c XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEBUG PR
+                    -INT(.\Listings\I2C.lst) OBJECT(.\Objects\I2C.obj) 
+
+stmt  level    source
+
+    1          #include <STC8051U.H>
+    2          #include "I2C.h"
+    3          #include "intrins.h"
+    4          #include "uart.h"
+    5          #define NO_ACTION                       0000
+    6          #define START                           0001
+    7          #define WRITE                           0010
+    8          #define RACK                            0011
+    9          #define READ                            0100
+   10          #define WACK                            0101
+   11          #define STOP                            0110
+   12          #define START_WRITE_RACK        1001
+   13          #define WRITE_RACK              1010
+   14          #define READ_WACK                       1011
+   15          #define READ_WNAK               1100
+   16          
+   17          sbit SDA = P2^3;
+   18          sbit SCL = P2^4;
+   19          
+   20          static void delayxms(unsigned int xms)  //@11.0592MHz
+   21          {
+   22   1              unsigned long edata i;
+   23   1              unsigned char j=0;
+   24   1              while(xms--)
+   25   1              {
+   26   2                      for(j=0;j<13;j++)
+   27   2                      {
+   28   3                              _nop_();
+   29   3                              _nop_();
+   30   3                              i = 2763UL;
+   31   3                              while (i) i--;
+   32   3                      }
+   33   2              }
+   34   1      }
+   35          
+   36          void i2c_init()
+   37          {       
+   38   1              P_SW2 &= 0xCF;//11001111
+   39   1      //      I2CCFG=0xFD;//11 001101 低六位
+   40   1      //      I2CPSCR=0x00;//高八位  0 13
+   41   1      //      I2CMSCR=0x00;//0 000 0000 
+   42   1      //      I2CMSAUX=0x00;//0000 000 0
+   43   1      //      I2CMSST=0x00;//00 0000 0 1
+   44   1              
+   45   1              I2CCFG = 0xCD;//1100 1101
+   46   1              I2CMSST= 0x00;
+   47   1      }
+   48          
+   49          void Wait()
+   50          {
+   51   1              
+   52   1              while(!(I2CMSST&0x40));
+   53   1              I2CMSST &= ~0x40;
+   54   1      }
+   55          
+   56          void Start()
+   57          {
+   58   1              I2CMSCR=0x01; //发送START命令
+C251 COMPILER V5.60.0,  I2C                                                                10/08/24  08:39:09  PAGE 2   
+
+   59   1              Wait();
+   60   1      }
+   61          
+   62          void SendData(unsigned dat)
+   63          {
+   64   1              I2CTXD=dat;      //写数据到数据缓冲区
+   65   1              I2CMSCR=0x02;//发送SEND命令
+   66   1              Wait();
+   67   1      }
+   68          
+   69          unsigned char RecvACK()
+   70          {
+   71   1              I2CMSCR=0x03; //发送读ACK命令
+   72   1              
+   73   1              Wait();
+   74   1              return I2CMSST=1?0:1;
+   75   1      }
+   76          
+   77          unsigned char RecvData()
+   78          {
+   79   1              I2CMSCR=0x04; //发送RECV命令
+   80   1              Wait();
+   81   1              return I2CRXD;
+   82   1      }
+   83          
+   84          void SendACK()
+   85          {
+   86   1              I2CMSST=0x00;//设置ACK信号
+   87   1              I2CMSCR=0x05;//发送ACK命令
+   88   1              Wait();
+   89   1      }
+   90          
+   91          void SendNAK()
+   92          {
+   93   1              I2CMSST = 0x01;//设置NAK信号
+   94   1              I2CMSCR = 0x05;//发送ACK命令
+   95   1              Wait();
+   96   1      }
+   97          
+   98          void Stop()
+   99          {
+  100   1              I2CMSCR=0x06; //发送STOP命令
+  101   1              Wait();
+  102   1      }
+  103          
+  104          void Delay()
+  105          {
+  106   1              int i;
+  107   1              
+  108   1              for(i=0;i<3000;i++)
+  109   1              {
+  110   2                      _nop_();
+  111   2                      _nop_();
+  112   2                      _nop_();
+  113   2                      _nop_();
+  114   2              }
+  115   1      }
+  116          
+  117          unsigned char i2c_mem_write(unsigned char devAddr,unsigned char reg,unsigned char *pData,unsigned char am
+             -ount)
+  118          {
+  119   1              unsigned char i;
+  120   1              if((I2CMSST&0x80)==0x80)//总线忙碌等待释放
+  121   1              {
+  122   2                      return 1;
+  123   2              }
+C251 COMPILER V5.60.0,  I2C                                                                10/08/24  08:39:09  PAGE 3   
+
+  124   1      //      while((I2CMSST&0x80)==0x80);
+  125   1              Start();//发送ST
+  126   1              SendData(devAddr<<1);//发送设备地址加写命令
+  127   1              if(RecvACK())//接收应答
+  128   1              {
+  129   2                      Stop();//通信结束
+  130   2                      return 1;
+  131   2              }
+  132   1              SendData(reg);//发送存储地址
+  133   1              if(RecvACK())//接收应答
+  134   1              {
+  135   2                      Stop();//通信结束
+  136   2                      return 1;
+  137   2              }
+  138   1              for(i=0;i<amount;i++)
+  139   1              {
+  140   2                      SendData(*(pData+i)); //发送数据
+  141   2                      if(RecvACK())
+  142   2                      {
+  143   3                              Stop();//通信结束
+  144   3                              return 1;
+  145   3                      }
+  146   2              }
+  147   1              Stop();//通信结束
+  148   1              return 0;
+  149   1      }
+  150          
+  151          unsigned char i2c_mem_read(unsigned char devAddr,unsigned char reg,unsigned char *pData,unsigned char amo
+             -unt)
+  152          {
+  153   1              unsigned char i;
+  154   1              if((I2CMSST&0x80)==0x80)//总线忙碌等待释放
+  155   1              {
+  156   2                      return 1;
+  157   2              }
+  158   1      //      while((I2CMSST&0x80)==0x80);
+  159   1              Start();//发送ST
+  160   1              SendData(devAddr<<1);//发送设备地址加写命令
+  161   1              if(RecvACK())//接收应答
+  162   1              {
+  163   2                      Stop();//通信结束
+  164   2                      return 1;
+  165   2              }
+  166   1              SendData(reg);//发送存储地址
+  167   1              if(RecvACK())//接收应答
+  168   1              {
+  169   2                      Stop();
+  170   2                      return 1;
+  171   2              }
+  172   1              Start();//发送SR
+  173   1              SendData((devAddr<<1)+1);//发送设备地址加读命令
+  174   1              if(RecvACK())//接收应答
+  175   1              {
+  176   2                      Stop();//通信结束
+  177   2                      return 1;
+  178   2              }
+  179   1              for(i=0;i<amount;i++)
+  180   1              {
+  181   2                      *(pData+i)=RecvData(); //接收数据
+  182   2                      if(i!=amount-1)
+  183   2                      {
+  184   3                              SendACK();//发送应答
+  185   3                      }
+  186   2              }
+  187   1              SendNAK();//发送未应答
+  188   1              Stop();//通信结束
+C251 COMPILER V5.60.0,  I2C                                                                10/08/24  08:39:09  PAGE 4   
+
+  189   1              return 0;
+  190   1      }
+*** WARNING C174 IN LINE 20 OF Code\I2C.c: 'delayxms': unreferenced 'static' function
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       589     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------          8
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

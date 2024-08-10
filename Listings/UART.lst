@@ -1,0 +1,74 @@
+C251 COMPILER V5.60.0,  UART                                                               10/08/24  08:39:09  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE UART
+OBJECT MODULE PLACED IN .\Objects\UART.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE Code\UART.c XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEBUG P
+                    -RINT(.\Listings\UART.lst) OBJECT(.\Objects\UART.obj) 
+
+stmt  level    source
+
+    1          #include <STC8051U.H>
+    2          #include <stdio.h>
+    3          
+    4          void uart1_init() //921600
+    5          {
+    6   1              SCON = 0x50;            //8位数据,可变波特率
+    7   1              AUXR |= 0x40;           //定时器时钟1T模式
+    8   1              AUXR &= 0xFE;           //串口1选择定时器1为波特率发生器
+    9   1              TMOD &= 0x0F;           //设置定时器模式
+   10   1              TL1 = 0xF9;                     //设置定时初始值
+   11   1              TH1 = 0xFF;                     //设置定时初始值
+   12   1              ET1 = 0;                        //禁止定时器中断
+   13   1              TR1 = 1;                        //定时器1开始计时
+   14   1      }
+   15          
+   16          void uart1_sendByte(unsigned char dat){
+   17   1         SBUF = dat;     //写入发送缓冲寄存器
+   18   1         while(!TI);    //等待发送完成，TI发送溢出标志位 置1
+   19   1         TI = 0;      //对溢出标志位清零      
+   20   1      }
+   21          void uart1_sendString(unsigned char *str){
+   22   1              while(*str!='\0'){    //指针的数据没到最后一位一直执行循环体
+   23   2                      uart1_sendByte(*str++); //发送指针指向的数据(字节byte)
+   24   2                                                               //指针自增，指向下一个数据 
+   25   2              }
+   26   1      }
+   27          
+   28          //void Uart2_Isr(void) interrupt 8
+   29          //{
+   30          //      if (S2CON & 0x02)       //检测串口2发送中断
+   31          //      {
+   32          //              S2CON &= ~0x02; //清除串口2发送中断请求位
+   33          //      }
+   34          //      if (S2CON & 0x01)       //检测串口2接收中断
+   35          //      {
+   36          //              S2CON &= ~0x01; //清除串口2接收中断请求位
+   37          //      }
+   38          //}
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =        55     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+C251 COMPILER V5.60.0,  UART                                                               10/08/24  08:39:09  PAGE 2   
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,1 @@
+"Debugware\oledfont.c" XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEBUG PRINT(.\Listings\oledfont.lst) OBJECT(.\Objects\oledfont.obj)

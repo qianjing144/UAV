@@ -1,0 +1,17 @@
+".\Objects\I2C.obj",
+".\Objects\LPS22HH.obj",
+".\Objects\main.obj",
+".\Objects\UART.obj",
+".\Objects\SBUS.obj",
+".\Objects\timer.obj",
+".\Objects\MPU6050.obj",
+".\STC32_FPMU_HUGE_V1.0.LIB",
+".\Objects\QMC5883L.obj",
+".\Objects\motor.obj",
+".\Objects\PID.obj",
+".\Objects\oled.obj",
+".\Objects\oledfont.obj" 
+TO ".\Objects\project" 
+PRINT(".\Listings\project.map") CASE 
+CLASSES (EDATA (0x0-0x7FF), 
+HDATA (0x0-0x7FF)) 

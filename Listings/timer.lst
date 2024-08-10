@@ -1,0 +1,63 @@
+C251 COMPILER V5.60.0,  timer                                                              10/08/24  08:39:09  PAGE 1   
+
+
+C251 COMPILER V5.60.0, COMPILATION OF MODULE timer
+OBJECT MODULE PLACED IN .\Objects\timer.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE Code\timer.c XSMALL ROM(HUGE) BROWSE INCDIR(.\Code;.\Debugware) DEBUG 
+                    -PRINT(.\Listings\timer.lst) OBJECT(.\Objects\timer.obj) 
+
+stmt  level    source
+
+    1          #include <STC8051U.H>
+    2          
+    3          //void Timer3_Isr(void) interrupt 19
+    4          //{
+    5          //}
+    6          
+    7          void timer3_init(void)          //1毫秒@24.000MHz
+    8          {
+    9   1              T4T3M |= 0x02;                  //定时器时钟1T模式
+   10   1              T3L = (65535-24000);                            //设置定时初始值
+   11   1              T3H = (65535-24000)>>8;                         //设置定时初始值
+   12   1              T4T3M |= 0x08;                  //定时器3开始计时
+   13   1              IE2 |= 0x20;                    //使能定时器3中断
+   14   1      }
+   15          
+   16          //void Timer4_Isr(void) interrupt 20
+   17          //{
+   18          //}
+   19          
+   20          void Timer4_Init(void)          //1毫秒@24.000MHz
+   21          {
+   22   1              TM4PS = 0x24;                   //设置定时器时钟预分频 ( 注意:并非所有系列都有此寄存器,详情请
+             -查看数据手册 )
+   23   1              T4T3M |= 0x20;                  //定时器时钟1T模式
+   24   1              T4L = 0x9F;                             //设置定时初始值
+   25   1              T4H = 0x02;                             //设置定时初始值
+   26   1              T4T3M |= 0x80;                  //定时器4开始计时
+   27   1              IE2 |= 0x40;                    //使能定时器4中断
+   28   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =        45     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
